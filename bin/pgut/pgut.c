@@ -497,22 +497,25 @@ prompt_for_password(void)
 
 
 PGconn *
-pgut_connect(const char *info, YesNo prompt, int elevel)
+pgut_connect(const char **keyword, const char **values, YesNo prompt, int elevel)
 {
 	char	   *passwd;
-	StringInfoData add_pass;
+	const char *tmp_values[6] = {NULL, NULL, NULL, NULL,  NULL, NULL};
+
+	tmp_values[0] = values[0];
+	tmp_values[1] = values[1];
+	tmp_values[2] = values[2];
+	tmp_values[3] = values[3];
+	tmp_values[4] = values[4];
 
 	if (prompt == YES)
 	{
 		passwd = prompt_for_password();
-		initStringInfo(&add_pass);
-		appendStringInfoString(&add_pass, info);
-		appendStringInfo(&add_pass, " password='%s' ", passwd);
+		tmp_values[4] = passwd;
 	}
 	else
 	{
-		passwd = NULL;
-		add_pass.data = NULL;
+		passwd = values[4];
 	}
 
 	/* Start the connection. Loop until we have a password if requested by backend. */
@@ -522,9 +525,9 @@ pgut_connect(const char *info, YesNo prompt, int elevel)
 		CHECK_FOR_INTERRUPTS();
 
 		if (!passwd)
-			conn = PQconnectdb(info);
+			conn = PQconnectdbParams(keyword, tmp_values, true);
 		else
-			conn = PQconnectdb(add_pass.data);
+			conn = PQconnectdbParams(keyword, tmp_values, true);
 
 		if (PQstatus(conn) == CONNECTION_OK)
 		{
@@ -539,8 +542,6 @@ pgut_connect(const char *info, YesNo prompt, int elevel)
 			pgut_connections = c;
 			pgut_conn_unlock();
 
-			if (add_pass.data != NULL)
-				termStringInfo(&add_pass);
 			free(passwd);
 
 			/* Hardcode a search path to avoid injections into public or pg_temp */
@@ -554,17 +555,10 @@ pgut_connect(const char *info, YesNo prompt, int elevel)
 			PQfinish(conn);
 			free(passwd);
 			passwd = prompt_for_password();
-			if (add_pass.data != NULL)
-	 			resetStringInfo(&add_pass);
-			else
-	 			initStringInfo(&add_pass);
-			appendStringInfoString(&add_pass, info);
-			appendStringInfo(&add_pass, " password='%s' ", passwd);
+			tmp_values[4] = passwd;
 			continue;
 		}
 
-		if (add_pass.data != NULL)
-			termStringInfo(&add_pass);
 		free(passwd);
 
 		ereport(elevel,

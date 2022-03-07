@@ -61,7 +61,7 @@ extern void pgut_putenv(const char *key, const char *value);
 /*
  * Database connections
  */
-extern PGconn *pgut_connect(const char *info, YesNo prompt, int elevel);
+extern PGconn *pgut_connect(const char **keywword, const char **values, YesNo prompt, int elevel);
 extern void pgut_disconnect(PGconn *conn);
 extern void pgut_disconnect_all(void);
 extern PGresult *pgut_execute(PGconn* conn, const char *query, int nParams, const char **params);
